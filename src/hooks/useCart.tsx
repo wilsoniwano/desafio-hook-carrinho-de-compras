@@ -44,13 +44,20 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
       const response = await api.get(`/stock/${productId}`);
       return response.data.amount;
     } catch (err: any) {
-      toast.error(err.message);
+      throw err;
     }
   };
 
   const saveCartToLocalStorage = (updatedCart: Array<object>) => {
     localStorage.setItem('@RocketShoes:cart', JSON.stringify(updatedCart));
   };
+
+  class ValidationError extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = 'ValidationError';
+    }
+  }
 
   const addProduct = async (productId: number) => {
     try {
@@ -67,25 +74,30 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
             amount: 1,
           });
         } else {
-          await api.get(`/products/${productId}`).then((response) => {
-            let responseData = response.data;
-            responseData.amount = 1;
-            const updatedCart = [...cart, responseData];
-            setCart(updatedCart);
-            saveCartToLocalStorage(updatedCart);
-          });
+          const response = await api.get(`/products/${productId}`);
+          let responseData = response.data;
+          responseData.amount = 1;
+          const updatedCart = [...cart, responseData];
+          setCart(updatedCart);
+          saveCartToLocalStorage(updatedCart);
         }
-      } else {
-        throw new Error('Produto sem estoque');
+      } else if (stockQuantity === 0) {
+        throw new ValidationError('Quantidade solicitada fora de estoque');
       }
     } catch (err: any) {
-      toast.error(err.message);
+      if (err instanceof ValidationError) {
+        toast.error(err.message);
+      } else {
+        toast.error('Erro na adição do produto');
+      }
     }
   };
 
   const removeProduct = (productId: number) => {
     try {
-      // TODO
+      // Verificar se tem produto no carrinho
+      // Remover o produto do cart
+      // Remover do produto do localstorage
     } catch {
       // TODO
     }
