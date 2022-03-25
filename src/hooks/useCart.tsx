@@ -39,38 +39,47 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
     return [];
   });
 
+  const getStockQuantity = async (productId: number) => {
+    try {
+      const response = await api.get(`/stock/${productId}`);
+      return response.data.amount;
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const saveCartToLocalStorage = (updatedCart: Array<object>) => {
+    localStorage.setItem('@RocketShoes:cart', JSON.stringify(updatedCart));
+  };
+
   const addProduct = async (productId: number) => {
     try {
-      const productExists = cart.some((item) => item.id === productId);
+      const stockQuantity = await getStockQuantity(productId);
 
-      console.log(`exists? ${productExists}, productId: ${productId}`);
-
-      if (productExists) {
-        let products = [...cart];
-        const productIndex = products.findIndex(
-          (product) => product.id === productId
+      if (stockQuantity > 0) {
+        const productAlreadyAddedtoCart = cart.some(
+          (item) => item.id === productId
         );
-        products[productIndex].amount++;
-        const updatedCart = [...products];
-        setCart(updatedCart);
-        localStorage.setItem('@RocketShoes:cart', JSON.stringify(updatedCart));
+
+        if (productAlreadyAddedtoCart) {
+          updateProductAmount({
+            productId: productId,
+            amount: 1,
+          });
+        } else {
+          await api.get(`/products/${productId}`).then((response) => {
+            let responseData = response.data;
+            responseData.amount = 1;
+            const updatedCart = [...cart, responseData];
+            setCart(updatedCart);
+            saveCartToLocalStorage(updatedCart);
+          });
+        }
       } else {
-        await api.get(`/products/${productId}`).then((response) => {
-          let responseData = response.data;
-          responseData.amount = 1;
-          const updatedCart = [...cart, responseData];
-          setCart(updatedCart);
-          localStorage.setItem(
-            '@RocketShoes:cart',
-            JSON.stringify(updatedCart)
-          );
-        });
+        throw new Error('Produto sem estoque');
       }
-      const localStorageData = localStorage.getItem('@RocketShoes:cart');
-      console.log(localStorageData);
-      console.log(cart);
-    } catch {
-      // TODO
+    } catch (err: any) {
+      toast.error(err.message);
     }
   };
 
@@ -87,9 +96,16 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
     amount,
   }: UpdateProductAmount) => {
     try {
-      // TODO
-    } catch {
-      // TODO
+      let products = [...cart];
+      const productIndex = products.findIndex(
+        (product) => product.id === productId
+      );
+      products[productIndex].amount++;
+      const updatedCart = [...products];
+      setCart(updatedCart);
+      saveCartToLocalStorage(updatedCart);
+    } catch (err: any) {
+      toast.error(err.message);
     }
   };
 
