@@ -26,7 +26,23 @@ interface CartContextData {
   updateProductAmount: ({ productId, amount }: UpdateProductAmount) => void;
 }
 
+class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
 const CartContext = createContext<CartContextData>({} as CartContextData);
+
+const getStockQuantity = async (productId: number) => {
+  const response = await api.get(`/stock/${productId}`);
+  return response.data.amount;
+};
+
+const saveCartToLocalStorage = (updatedCart: Array<object>) => {
+  localStorage.setItem('@RocketShoes:cart', JSON.stringify(updatedCart));
+};
 
 export function CartProvider({ children }: CartProviderProps): JSX.Element {
   const [cart, setCart] = useState<Product[]>(() => {
@@ -38,26 +54,6 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
 
     return [];
   });
-
-  const getStockQuantity = async (productId: number) => {
-    try {
-      const response = await api.get(`/stock/${productId}`);
-      return response.data.amount;
-    } catch (err: any) {
-      throw err;
-    }
-  };
-
-  const saveCartToLocalStorage = (updatedCart: Array<object>) => {
-    localStorage.setItem('@RocketShoes:cart', JSON.stringify(updatedCart));
-  };
-
-  class ValidationError extends Error {
-    constructor(message: string) {
-      super(message);
-      this.name = 'ValidationError';
-    }
-  }
 
   const addProduct = async (productId: number) => {
     try {
@@ -108,16 +104,27 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
     amount,
   }: UpdateProductAmount) => {
     try {
-      let products = [...cart];
-      const productIndex = products.findIndex(
-        (product) => product.id === productId
-      );
-      products[productIndex].amount = amount;
-      const updatedCart = [...products];
-      setCart(updatedCart);
-      saveCartToLocalStorage(updatedCart);
+      const stockQuantity = await getStockQuantity(productId);
+
+      if (stockQuantity > 0) {
+        console.log('tem produto', productId, amount);
+        let products = [...cart];
+        const productIndex = products.findIndex(
+          (product) => product.id === productId
+        );
+        products[productIndex].amount += amount;
+        const updatedCart = [...products];
+        setCart(updatedCart);
+        saveCartToLocalStorage(updatedCart);
+      } else if (stockQuantity === 0) {
+        throw new ValidationError('Quantidade solicitada fora de estoque');
+      }
     } catch (err: any) {
-      toast.error(err.message);
+      if (err instanceof ValidationError) {
+        toast.error(err.message);
+      } else {
+        toast.error('Erro na alteração de quantidade do produto');
+      }
     }
   };
 
