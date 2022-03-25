@@ -91,11 +91,17 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
 
   const removeProduct = (productId: number) => {
     try {
-      // Verificar se tem produto no carrinho
-      // Remover o produto do cart
-      // Remover do produto do localstorage
+      const cartData = cart;
+      let updatedCart: Product[] = [];
+      cartData.forEach((item) => {
+        if (productId !== item.id) {
+          updatedCart.push(item);
+        }
+      });
+      setCart(updatedCart);
+      saveCartToLocalStorage(updatedCart);
     } catch {
-      // TODO
+      toast.error('Erro na remoção do produto');
     }
   };
 
@@ -107,13 +113,11 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
       const stockQuantity = await getStockQuantity(productId);
 
       if (stockQuantity > 0) {
-        console.log('tem produto', productId, amount);
-        let products = [...cart];
-        const productIndex = products.findIndex(
+        let updatedCart = cart;
+        const productIndex = updatedCart.findIndex(
           (product) => product.id === productId
         );
-        products[productIndex].amount += amount;
-        const updatedCart = [...products];
+        updatedCart[productIndex].amount += amount;
         setCart(updatedCart);
         saveCartToLocalStorage(updatedCart);
       } else if (stockQuantity === 0) {
