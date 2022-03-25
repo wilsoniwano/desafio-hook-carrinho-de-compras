@@ -100,7 +100,7 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
       const productIndex = products.findIndex(
         (product) => product.id === productId
       );
-      products[productIndex].amount++;
+      products[productIndex].amount = amount;
       const updatedCart = [...products];
       setCart(updatedCart);
       saveCartToLocalStorage(updatedCart);
